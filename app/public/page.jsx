@@ -24,10 +24,10 @@ export default function PublicPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                Layanan Masyarakat
+                Selamat Datang di Portal Layanan Publik Kabupaten Bogor
               </h1>
               <p className="text-sm sm:text-base text-gray-600 mt-1">
-                Pengajuan dan Pengecekan Status Layanan
+                Nikmati kemudahan layanan online untuk pengajuan dan pengecekan status secara cepat dan mudah.
               </p>
             </div>
             <a
