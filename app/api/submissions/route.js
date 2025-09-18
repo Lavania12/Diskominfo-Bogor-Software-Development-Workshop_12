@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Op } from "sequelize";
 import { Submission, NotificationLog, initializeDatabase } from "@/lib/sequelize";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { sendInitialSubmissionNotification } from "@/lib/notify/sicuba";
@@ -19,33 +20,45 @@ export async function GET(request) {
     // In a real application, you would verify admin authentication here
     // For workshop purposes, we'll skip authentication
 
-    // Parse cache-busting query parameters
+    // Parse query parameters for search and sort
     const url = new URL(request.url);
+    const q = (url.searchParams.get("q") || "").trim();
+    const sortParam = (url.searchParams.get("sort") || "createdAt").trim();
+    const orderParam = (url.searchParams.get("order") || "desc").trim();
+
+    // Legacy cache-busting params (kept for compatibility)
     const queryTimestamp = url.searchParams.get("t");
     const queryRandom = url.searchParams.get("r");
     const queryForce = url.searchParams.get("force");
     const queryCacheBuster = url.searchParams.get("cb");
 
-    // Force fresh data dengan multiple strategies
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(7);
-    const forceRefresh = Date.now();
-
     console.log(
-      `[${new Date().toISOString()}] Fetching submissions with force refresh: ${timestamp}-${random}-${forceRefresh}`
-    );
-    console.log(
-      `[${new Date().toISOString()}] Query params: t=${queryTimestamp}, r=${queryRandom}, force=${queryForce}, cb=${queryCacheBuster}`
+      `[${new Date().toISOString()}] Fetching submissions with search: "${q}", sort: ${sortParam}, order: ${orderParam}`
     );
 
-    // Force fresh query dengan random order strategy
-    const randomOrder = Math.random() > 0.5 ? "ASC" : "DESC";
-    console.log(
-      `[${new Date().toISOString()}] Using random order: ${randomOrder}`
-    );
+    // Build where clause for search q (nama/email)
+    const where = q
+      ? {
+          [Op.or]: [
+            { nama: { [Op.iLike]: `%${q}%` } },
+            { email: { [Op.iLike]: `%${q}%` } },
+          ],
+        }
+      : undefined;
+
+    // Build sorting
+    const sortMap = {
+      createdAt: "created_at",
+      status: "status",
+    };
+    const sortField = sortMap[sortParam] || "created_at";
+    const sortDirection = ["asc", "desc"].includes(orderParam.toLowerCase())
+      ? orderParam.toUpperCase()
+      : "DESC";
 
     const submissions = await Submission.findAll({
-      order: [["created_at", randomOrder]], // Random order untuk force fresh query
+      where,
+      order: [[sortField, sortDirection]],
       attributes: [
         "id",
         "tracking_code",

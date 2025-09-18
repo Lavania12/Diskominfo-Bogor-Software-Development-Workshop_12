@@ -22,6 +22,11 @@ export default function AdminDashboard() {
   const [chartData, setChartData] = useState([]);
   const [updatingStatus, setUpdatingStatus] = useState({}); // Track which submission is being updated
   const [refreshing, setRefreshing] = useState(false); // Track refresh loading state
+  
+  // Search and sort states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
 
   const COLORS = ["#ffc107", "#1890ff", "#52c41a", "#ff4d4f"];
 
@@ -49,40 +54,33 @@ export default function AdminDashboard() {
     }
 
     try {
-      // Ultra-aggressive cache bypass
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(7);
-      const forceRefresh = Date.now();
-      const cacheBuster = Math.random().toString(36).substring(7);
-
-      const response = await fetch(
-        `/api/admin/submissions?t=${timestamp}&r=${random}&force=${forceRefresh}&cb=${cacheBuster}&_=${Date.now()}`,
-        {
-          headers: {
-            "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
-            Pragma: "no-cache",
-            "X-Requested-With": "XMLHttpRequest",
-            "X-Force-Refresh": "true",
-            "X-Cache-Buster": `${timestamp}-${random}`,
-            "X-Request-Time": `${Date.now()}`,
-          },
-          // Force fresh request
-          cache: "no-store",
-        }
-      );
+      console.log('Fetching submissions from /api/admin/submissions...');
+      
+      const response = await fetch('/api/admin/submissions', {
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+          Pragma: "no-cache",
+        },
+        cache: "no-store",
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('Received data:', data.length, 'submissions');
 
-      if (response.ok) {
-        setSubmissions(data);
-        updateChartData(data);
-        if (showLoading) {
-          message.success("Data berhasil diperbarui");
-        }
-      } else {
-        message.error("Gagal memuat data pengajuan");
+      setSubmissions(data);
+      updateChartData(data);
+      if (showLoading) {
+        message.success("Data berhasil diperbarui");
       }
     } catch (error) {
-      message.error("Terjadi kesalahan jaringan");
+      console.error('Fetch error:', error);
+      message.error("Terjadi kesalahan jaringan: " + error.message);
     } finally {
       setLoading(false);
       if (showLoading) {
@@ -93,6 +91,25 @@ export default function AdminDashboard() {
 
   // Simple refresh function
   const handleRefresh = () => {
+    fetchSubmissions(true);
+  };
+
+  // Search and sort handlers
+  const handleSearch = (value) => {
+    setSearchQuery(value);
+    // Debounce search - fetch after 500ms delay
+    setTimeout(() => {
+      fetchSubmissions(true);
+    }, 500);
+  };
+
+  const handleSortChange = (field) => {
+    setSortBy(field);
+    fetchSubmissions(true);
+  };
+
+  const handleOrderChange = (order) => {
+    setSortOrder(order);
     fetchSubmissions(true);
   };
 
@@ -738,26 +755,71 @@ export default function AdminDashboard() {
 
         {/* Table */}
         <Card title="Daftar Pengajuan">
-          <div className="mb-4">
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              style={{ width: "100%", maxWidth: 200 }}
-              placeholder="Filter by status"
-              disabled={loading || Object.values(updatingStatus).some(Boolean)}
-              loading={loading}
-            >
-              <Option value="ALL">Semua Status</Option>
-              <Option value="PENGAJUAN_BARU">Pengajuan Baru</Option>
-              <Option value="DIPROSES">Sedang Diproses</Option>
-              <Option value="SELESAI">Selesai</Option>
-              <Option value="DITOLAK">Ditolak</Option>
-            </Select>
-            {loading && (
-              <span className="ml-2 text-xs sm:text-sm text-gray-500">
-                Memuat data...
-              </span>
-            )}
+          <div className="mb-4 space-y-4">
+            {/* Search and Sort Controls */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Search Input */}
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Cari berdasarkan nama atau email..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black transition duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading || Object.values(updatingStatus).some(Boolean)}
+                />
+              </div>
+              
+              {/* Sort Controls */}
+              <div className="flex gap-2">
+                <Select
+                  value={sortBy}
+                  onChange={handleSortChange}
+                  style={{ width: 150 }}
+                  placeholder="Sort by"
+                  disabled={loading || Object.values(updatingStatus).some(Boolean)}
+                  loading={loading}
+                >
+                  <Option value="createdAt">Tanggal Dibuat</Option>
+                  <Option value="status">Status</Option>
+                </Select>
+                
+                <Select
+                  value={sortOrder}
+                  onChange={handleOrderChange}
+                  style={{ width: 120 }}
+                  placeholder="Order"
+                  disabled={loading || Object.values(updatingStatus).some(Boolean)}
+                  loading={loading}
+                >
+                  <Option value="desc">Terbaru</Option>
+                  <Option value="asc">Terlama</Option>
+                </Select>
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div className="flex items-center gap-4">
+              <Select
+                value={statusFilter}
+                onChange={setStatusFilter}
+                style={{ width: "100%", maxWidth: 200 }}
+                placeholder="Filter by status"
+                disabled={loading || Object.values(updatingStatus).some(Boolean)}
+                loading={loading}
+              >
+                <Option value="ALL">Semua Status</Option>
+                <Option value="PENGAJUAN_BARU">Pengajuan Baru</Option>
+                <Option value="DIPROSES">Sedang Diproses</Option>
+                <Option value="SELESAI">Selesai</Option>
+                <Option value="DITOLAK">Ditolak</Option>
+              </Select>
+              {loading && (
+                <span className="text-xs sm:text-sm text-gray-500">
+                  Memuat data...
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="relative">

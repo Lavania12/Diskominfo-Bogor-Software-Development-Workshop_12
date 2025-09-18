@@ -1,5 +1,8 @@
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
-import { Submission, initializeDatabase } from "@/lib/sequelize";
+import { Op } from "sequelize";
+import { initializeDatabase } from "@/lib/sequelize";
 
 // Initialize database on first request
 let dbInitialized = false;
@@ -14,36 +17,14 @@ export async function GET(request) {
   try {
     await initDB();
 
-    // In a real application, you would verify admin authentication here
-    // For workshop purposes, we'll skip authentication
+    console.log(`[${new Date().toISOString()}] Fetching admin submissions...`);
 
-    // Parse cache-busting query parameters
-    const url = new URL(request.url);
-    const queryTimestamp = url.searchParams.get("t");
-    const queryRandom = url.searchParams.get("r");
-    const queryForce = url.searchParams.get("force");
-    const queryCacheBuster = url.searchParams.get("cb");
-
-    // Force fresh data dengan multiple strategies
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(7);
-    const forceRefresh = Date.now();
-
-    console.log(
-      `[${new Date().toISOString()}] Fetching submissions with force refresh: ${timestamp}-${random}-${forceRefresh}`
-    );
-    console.log(
-      `[${new Date().toISOString()}] Query params: t=${queryTimestamp}, r=${queryRandom}, force=${queryForce}, cb=${queryCacheBuster}`
-    );
-
-    // Force fresh query dengan random order strategy
-    const randomOrder = Math.random() > 0.5 ? "ASC" : "DESC";
-    console.log(
-      `[${new Date().toISOString()}] Using random order: ${randomOrder}`
-    );
-
+    // Simple query without search/sort for now to test basic functionality
+    const { getSubmissionModel } = require("@/lib/sequelize");
+    const Submission = getSubmissionModel();
+    
     const submissions = await Submission.findAll({
-      order: [["created_at", randomOrder]], // Random order untuk force fresh query
+      order: [["created_at", "DESC"]],
       attributes: [
         "id",
         "tracking_code",
@@ -53,10 +34,7 @@ export async function GET(request) {
         "created_at",
         "updated_at",
       ],
-      // Force fresh data
       raw: false,
-      // Add random parameter to force fresh query
-      logging: console.log,
     });
 
     console.log(

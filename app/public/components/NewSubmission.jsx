@@ -55,10 +55,12 @@ export default function NewSubmission() {
   const validateForm = () => {
     const newErrors = {};
 
+    // Full name validation (required)
     if (!formData.nama.trim()) {
-      newErrors.nama = "Nama wajib diisi";
+      newErrors.nama = "Nama lengkap wajib diisi";
     }
 
+    // NIK validation
     if (!formData.nik.trim()) {
       newErrors.nik = "NIK wajib diisi";
     } else if (formData.nik.length !== 16) {
@@ -67,12 +69,24 @@ export default function NewSubmission() {
       newErrors.nik = "NIK hanya boleh berisi angka";
     }
 
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    // Email validation (required and valid format)
+    if (!formData.email.trim()) {
+      newErrors.email = "Email wajib diisi";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Format email tidak valid";
     }
 
+    // Phone number validation (required and numeric)
     if (!formData.no_wa.trim()) {
       newErrors.no_wa = "Nomor WhatsApp wajib diisi";
+    } else {
+      // Remove all non-digit characters for validation
+      const cleanedPhone = formData.no_wa.replace(/\D/g, "");
+      if (cleanedPhone.length < 8) {
+        newErrors.no_wa = "Nomor WhatsApp harus minimal 8 digit";
+      } else if (!/^\d+$/.test(cleanedPhone)) {
+        newErrors.no_wa = "Nomor WhatsApp hanya boleh berisi angka";
+      }
     }
 
     if (!formData.jenis_layanan) {
@@ -188,7 +202,7 @@ export default function NewSubmission() {
             htmlFor="email"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Email (Opsional)
+            Email *
           </label>
           <input
             type="email"

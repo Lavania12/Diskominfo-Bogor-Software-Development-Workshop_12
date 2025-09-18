@@ -1,17 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { message } from "antd";
 
-export default function AdminLogin() {
-  const router = useRouter();
+export default function TestLogin() {
   const [formData, setFormData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
-  const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -19,29 +17,20 @@ export default function AdminLogin() {
       ...prev,
       [name]: value,
     }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.email || !formData.password) {
-      setErrors({ submit: "Email dan password wajib diisi" });
-      return;
-    }
-
-    // Prevent multiple submissions
-    if (isSubmitting) {
+    if (!formData.username || !formData.password) {
+      message.error("Username dan password wajib diisi");
       return;
     }
 
     setIsSubmitting(true);
-    setErrors({}); // Clear previous errors
+    setResult(null);
 
     try {
-      // Call login API
       const response = await fetch("/api/admin/login", {
         method: "POST",
         headers: {
@@ -51,28 +40,28 @@ export default function AdminLogin() {
       });
 
       const data = await response.json();
+      
+      setResult({
+        status: response.status,
+        success: response.ok,
+        data: data
+      });
 
       if (response.ok) {
-        // Set session (in production use proper session management)
-        localStorage.setItem("adminLoggedIn", "true");
-        localStorage.setItem("adminData", JSON.stringify(data.admin));
-        console.log("Login successful, localStorage set"); // Debug log
-        
-        // Show success message
-        message.success("Login berhasil! Mengalihkan ke dashboard...");
-        
-        // Small delay to show the success message
-        setTimeout(() => {
-          router.push("/admin");
-        }, 1000);
+        message.success("Login berhasil!");
       } else {
-        setErrors({ submit: data.message || "Email atau password salah" });
-        setIsSubmitting(false); // Reset loading state on error
+        message.error(data.message || "Login gagal");
       }
     } catch (error) {
       console.error("Login error:", error);
-      setErrors({ submit: "Terjadi kesalahan jaringan" });
-      setIsSubmitting(false); // Reset loading state on error
+      setResult({
+        status: 0,
+        success: false,
+        data: { message: "Network error: " + error.message }
+      });
+      message.error("Terjadi kesalahan jaringan");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -81,30 +70,29 @@ export default function AdminLogin() {
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Admin Login
+            Test Login Admin
           </h1>
           <p className="text-gray-600">
-            Masuk ke panel administrasi
+            Test halaman login admin
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          
           <div>
             <label
-              htmlFor="email"
+              htmlFor="username"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Email
+              Username atau Email
             </label>
             <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
+              type="text"
+              id="username"
+              name="username"
+              value={formData.username}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black transition duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Masukkan email"
+              placeholder="Masukkan username atau email"
             />
           </div>
 
@@ -126,12 +114,6 @@ export default function AdminLogin() {
             />
           </div>
 
-          {errors.submit && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-sm text-red-600">{errors.submit}</p>
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={isSubmitting}
@@ -147,20 +129,52 @@ export default function AdminLogin() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Loading...
+                Testing...
               </>
             ) : (
-              "Login"
+              "Test Login"
             )}
           </button>
         </form>
 
+        {result && (
+          <div className="mt-6 p-4 rounded-lg border">
+            <h3 className="font-semibold mb-2">Test Result:</h3>
+            <div className={`p-3 rounded ${result.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+              <p className={`text-sm ${result.success ? 'text-green-800' : 'text-red-800'}`}>
+                <strong>Status:</strong> {result.status} {result.success ? '(Success)' : '(Failed)'}
+              </p>
+              <p className={`text-sm ${result.success ? 'text-green-800' : 'text-red-800'}`}>
+                <strong>Message:</strong> {result.data.message}
+              </p>
+              {result.success && result.data.admin && (
+                <div className="mt-2">
+                  <p className="text-sm text-green-800">
+                    <strong>Admin Data:</strong>
+                  </p>
+                  <pre className="text-xs text-green-700 mt-1 bg-green-100 p-2 rounded">
+                    {JSON.stringify(result.data.admin, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="mt-6 text-center">
-          <a href="/" className="text-blue-600 hover:text-blue-800 font-medium">
-            ← Kembali ke Beranda
+          <a href="/admin/login" className="text-blue-600 hover:text-blue-800 font-medium">
+            ← Kembali ke Login Admin
           </a>
         </div>
 
+        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>Test Credentials:</strong><br/>
+            Username: <code>admin</code><br/>
+            Email: <code>admin@diskominfo-bogor.go.id</code><br/>
+            Password: <code>admin123</code>
+          </p>
+        </div>
       </div>
     </div>
   );
